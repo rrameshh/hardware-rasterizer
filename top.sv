@@ -3,6 +3,7 @@
 module top (
     input  logic clk,
     input  logic rst,
+    input logic [7:0] ui_in,
     output logic [9:0] sx, sy,
     output logic de,
     output logic [7:0] sdl_r, sdl_g, sdl_b
@@ -15,6 +16,12 @@ module top (
     
     // Rotation angles
     logic signed [15:0] angle_x, angle_y, angle_z;
+
+    logic [7:0] ui_in_reg;
+    
+    always_ff @(posedge clk) begin
+        ui_in_reg <= ui_in;
+    end
     
     always_ff @(posedge clk) begin
         if (rst) begin
@@ -22,21 +29,41 @@ module top (
             angle_y <= 0;
             angle_z <= 0;
         end else if (frame) begin
-            angle_x <= angle_x + 16'd5;
-            angle_y <= angle_y + 16'd5;
-            angle_z <= angle_z + 16'd5;
+            angle_x <= angle_x + 16'd7;
+            angle_y <= angle_y + 16'd7;
+            angle_z <= angle_z + 16'd7;
         end
     end
-    
+
+    logic [1:0] model_select;
+    logic [25:0] model_timer;
+    logic [3:0] active_num_triangles;
+
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            model_select <= 2'd0;
+            model_timer <= 0;
+        end else if (frame) begin
+            if (model_timer >= 26'd180) begin  // 180 frames = 3 seconds at 60fps
+                model_timer <= 0;
+                model_select <= model_select + 1;
+            end else begin
+                model_timer <= model_timer + 1;
+            end
+        end
+    end
+
+
     // Scene objects
     vertex_3d_t cube_verts_3d[0:7];
     triangle_t cube_triangles[0:11];
     
     scene_objects scene (
+        .model_select(model_select),
         .cube_vertices(cube_verts_3d),
-        .cube_triangles(cube_triangles)
+        .cube_triangles(cube_triangles),
+        .num_triangles(active_num_triangles)
     );
-    
     // Rotated and projected vertices
     vertex_3d_t cube_verts_rotated[0:7];
     vertex_2d_t cube_verts_2d[0:7];
@@ -50,6 +77,9 @@ module top (
                 .angle_x(angle_x),
                 .angle_y(angle_y),
                 .angle_z(angle_z),
+                // .angle_x(16'd0), 
+                // .angle_y(16'd0), 
+                // .angle_z(16'd0),
                 .v_out(cube_verts_rotated[i])
             );
             
@@ -81,7 +111,7 @@ module top (
         .frame(frame),
         .vertices_2d(cube_verts_2d),
         .triangles(cube_triangles),
-        .num_triangles(4'd12),
+        .num_triangles(active_num_triangles),  // Use dynamic count
         .r(r4),
         .g(g4),
         .b(b4)
