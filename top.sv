@@ -22,6 +22,8 @@ module top (
     always_ff @(posedge clk) begin
         ui_in_reg <= ui_in;
     end
+
+    logic signed [9:0] cam_x, cam_z;
     
     always_ff @(posedge clk) begin
         if (rst) begin
@@ -37,41 +39,44 @@ module top (
 
     logic [1:0] model_select;
     logic [25:0] model_timer;
-    logic [3:0] active_num_triangles;
+    logic [4:0] active_num_triangles;
 
     always_ff @(posedge clk) begin
         if (rst) begin
-            model_select <= 2'd0;
+            model_select <= 2'd2;
             model_timer <= 0;
-        end else if (frame) begin
-            if (model_timer >= 26'd180) begin  // 180 frames = 3 seconds at 60fps
-                model_timer <= 0;
-                model_select <= model_select + 1;
-            end else begin
-                model_timer <= model_timer + 1;
-            end
-        end
+        end 
+        // else if (frame) begin
+        //     if (model_timer >= 26'd180) begin  // 180 frames = 3 seconds at 60fps
+        //         model_timer <= 0;
+        //         model_select <= model_select + 1;
+        //     end else begin
+        //         model_timer <= model_timer + 1;
+        //     end
+        // end
     end
 
 
     // Scene objects
-    vertex_3d_t cube_verts_3d[0:7];
-    triangle_t cube_triangles[0:11];
+    vertex_3d_t cube_verts_3d[0:17];
+    triangle_t cube_triangles[0:23];
     
     scene_objects scene (
         .model_select(model_select),
         .cube_vertices(cube_verts_3d),
         .cube_triangles(cube_triangles),
+        .cam_x(cam_x),
+        .cam_z(cam_z),
         .num_triangles(active_num_triangles)
     );
     // Rotated and projected vertices
-    vertex_3d_t cube_verts_rotated[0:7];
-    vertex_2d_t cube_verts_2d[0:7];
+    vertex_3d_t cube_verts_rotated[0:17];
+    vertex_2d_t cube_verts_2d[0:17];
     
     // Rotate all vertices
     genvar i;
     generate
-        for (i = 0; i < 8; i++) begin : rotate_vertices
+        for (i = 0; i < 18; i++) begin : rotate_vertices
             rotation_engine rot (
                 .v_in(cube_verts_3d[i]),
                 .angle_x(angle_x),

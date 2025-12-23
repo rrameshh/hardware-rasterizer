@@ -5,7 +5,7 @@ module projector (
     output vertex_2d_t v_2d
 );
 
-    localparam signed [31:0] FOCAL_LENGTH = 32'sd400;
+    localparam signed [31:0] FOCAL_LENGTH = 32'sd800;
     localparam signed [31:0] Z_OFFSET = 32'sd400;
     
     always_comb begin

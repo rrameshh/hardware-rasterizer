@@ -19,7 +19,7 @@ typedef struct packed {
 
 // Triangle definition (indices + color)
 typedef struct packed {
-    logic [2:0] v0, v1, v2;  // Vertex indices
+    logic [4:0] v0, v1, v2;  // Vertex indices
     color_t color;
 } triangle_t;
 

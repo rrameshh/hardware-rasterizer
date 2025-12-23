@@ -6,15 +6,29 @@ module rasterizer (
     input  logic [9:0] px, py,
     input  logic frame,
     
-    // Scene input (from scene controller)
-    input  vertex_2d_t vertices_2d[0:7],
-    input  triangle_t triangles[0:11],
-    input  logic [3:0] num_triangles,
+    input  vertex_2d_t vertices_2d[0:17],
+    input  triangle_t triangles[0:23],
+    input  logic [4:0] num_triangles,
     
     output logic [3:0] r, g, b
 );
 
-    // Edge function (keep your existing one)
+    // Depth-sorted triangles
+    triangle_t triangles_sorted[0:23];
+    logic [4:0] sorted_indices[0:23];
+    
+    // Depth sorter module
+    // depth_sorter sorter (
+    //     .vertices_2d(vertices_2d),
+    //     .triangles_in(triangles),
+    //     .num_triangles(num_triangles),
+    //     .triangles_sorted(triangles_sorted),
+    //     .sorted_indices(sorted_indices)
+    // );
+    always_comb begin
+        triangles_sorted = triangles;
+    end
+
     function automatic logic signed [21:0] edge_function(
         vertex_2d_t a, vertex_2d_t b, vertex_2d_t c
     );
@@ -28,7 +42,6 @@ module rasterizer (
         
         return (bx_minus_ax * cy_minus_ay) - (by_minus_ay * cx_minus_ax);
     endfunction
-    
 
     function automatic logic [3:0] calculate_brightness(
         vertex_2d_t A, vertex_2d_t B, vertex_2d_t C
@@ -48,7 +61,6 @@ module rasterizer (
         if (normal_z > 0) begin
             temp = normal_z >>> 10;
             brightness = temp[3:0];
-            
             if (brightness < 4'h6) brightness = 4'h6;
         end else begin
             brightness = 4'h6;
@@ -57,24 +69,24 @@ module rasterizer (
         return brightness;
     endfunction
     
-    // Rasterize triangles
+    // Rasterize sorted triangles
     always_comb begin
         automatic color_t pixel_color;
         automatic vertex_2d_t P;
-        automatic logic [3:0] brightness;  // NEW
+        automatic logic [3:0] brightness;
         
-        pixel_color = '{r: 4'h1, g: 4'h3, b: 4'h7}; // Background
+        pixel_color = '{r: 4'h1, g: 4'h3, b: 4'h7}; 
         P = '{x: px, y: py, z: 10'sd0};
         
-        // Check each triangle
+        // Render triangles in sorted order (already back-to-front)
         for (int t = 0; t < num_triangles; t++) begin
             automatic vertex_2d_t A, B, C;
             automatic logic signed [21:0] edge_abp, edge_bcp, edge_cap, edge_abc;
             automatic logic [9:0] min_x, max_x, min_y, max_y;
             
-            A = vertices_2d[triangles[t].v0];
-            B = vertices_2d[triangles[t].v1];
-            C = vertices_2d[triangles[t].v2];
+            A = vertices_2d[triangles_sorted[t].v0];
+            B = vertices_2d[triangles_sorted[t].v1];
+            C = vertices_2d[triangles_sorted[t].v2];
             
             // Bounding box
             min_x = (A.x < B.x) ? ((A.x < C.x) ? A.x : C.x) : ((B.x < C.x) ? B.x : C.x);
@@ -84,7 +96,7 @@ module rasterizer (
             
             edge_abc = edge_function(A, B, C);
             
-            // Backface culling - only render front faces
+            // Backface culling
             if (edge_abc < 0) begin
                 if (px >= min_x && px <= max_x && py >= min_y && py <= max_y) begin
                     edge_abp = edge_function(A, B, P);
@@ -96,12 +108,10 @@ module rasterizer (
                         
                         brightness = calculate_brightness(A, B, C);
                         
-                        // Multiply in 8-bit space
-                        temp_r = {4'h0, triangles[t].color.r} * {4'h0, brightness};
-                        temp_g = {4'h0, triangles[t].color.g} * {4'h0, brightness};
-                        temp_b = {4'h0, triangles[t].color.b} * {4'h0, brightness};
+                        temp_r = {4'h0, triangles_sorted[t].color.r} * {4'h0, brightness};
+                        temp_g = {4'h0, triangles_sorted[t].color.g} * {4'h0, brightness};
+                        temp_b = {4'h0, triangles_sorted[t].color.b} * {4'h0, brightness};
                         
-                        // Shift down to 4 bits
                         pixel_color.r = temp_r[7:4];
                         pixel_color.g = temp_g[7:4];
                         pixel_color.b = temp_b[7:4];

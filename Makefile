@@ -5,6 +5,7 @@ SDL_LDFLAGS := $(shell sdl2-config --libs)
 RTL_FILES = graphics_type.sv \
 			top.sv \
             vga.sv \
+			depth_sorter.sv \
             rotation.sv \
             projection.sv \
             scene_objects.sv \
